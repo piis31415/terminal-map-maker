@@ -9,6 +9,7 @@ import mapItemStyle from "./stylesheets/mapItemStyle";
 import GroupItem from "./components/GroupItem";
 import {groupColors, colorNames} from "./helpers/groupColors";
 import CustomHead from "./components/CustomHead";
+import PointsModal from "./components/PointsModal";
 
 class MapMaker extends React.Component {
     // initializes an empty representation of the map
@@ -19,12 +20,12 @@ class MapMaker extends React.Component {
             for (let j = 0; j < 28; j++) {
                 let x = j;
                 let y = 27 - i;
-                if (x < 14 && y < 14 && -x + 13 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0});
-                else if (x < 14 && y > 13 && x + 14 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0});
-                else if (x > 13 && y < 14 && x - 14 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0});
-                else if (x > 13 && y > 13 && -x + 41 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0});
-                else if (y > 13) gameMap[i].push({ type: ItemType.ENEMY, colorIndex: 0});
-                else gameMap[i].push({ type: ItemType.ME, colorIndex: 0});
+                if (x < 14 && y < 14 && -x + 13 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 0});
+                else if (x < 14 && y > 13 && x + 14 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 1});
+                else if (x > 13 && y < 14 && x - 14 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 0});
+                else if (x > 13 && y > 13 && -x + 41 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 1});
+                else if (y > 13) gameMap[i].push({ type: ItemType.VALID, colorIndex: 0, playerIndex: 1});
+                else gameMap[i].push({ type: ItemType.VALID, colorIndex: 0, playerIndex: 0});
             }
         }
         /* 
@@ -44,7 +45,10 @@ class MapMaker extends React.Component {
             groups: ["#FF22A1"],
             selectedGroupIndex: 0,
             showModal: false,
-            coordinateStrings: []
+            coordinateStrings: {
+                myPointsStrings: [],
+                enemyPointsStrings: []
+            }
         }
     }
     render() {
@@ -56,18 +60,10 @@ class MapMaker extends React.Component {
                 <CustomHead />
                 {
                     // modal for showing the user's points
-                    this.state.showModal && <div className="modal">
-                        <section className="modal-content">
-                            <div className="title">My points</div>
-                            <div className="results-field">{
-                                this.state.coordinateStrings
-                                    .map((string, i) => {
-                                        return <div key={i} className="points-group">{string.split("\n").map(str => <div>{str}</div>)}</div>
-                                    })   
-                            }</div>
-                            <div className="utility-button" onClick={() => this.setState({showModal: false})}>Done</div>
-                        </section>
-                    </div>
+                    this.state.showModal && <PointsModal 
+                        coordinateStrings={this.state.coordinateStrings} 
+                        hideModal={() => this.setState({showModal: false})}
+                    />
                 }
                 { /* Game Map */ }
                 <GameMap gameMap={this.state.gameMap} mapItemClick={this.mapItemClick} mapItemHover={this.mapItemHover}/>
@@ -97,8 +93,8 @@ class MapMaker extends React.Component {
                             <Destructor fillColor={groupColor}/>
                         </div>
                         <div 
-                            className={this.state.firewallType === ItemType.ME ? firewallItemSelected : firewallItemClass}
-                            onClick={() => this.setFirewallItem(ItemType.ME)}
+                            className={this.state.firewallType === ItemType.VALID ? firewallItemSelected : firewallItemClass}
+                            onClick={() => this.setFirewallItem(ItemType.VALID)}
                         >
                             <div className="x" style={{color: groupColor}}>X</div>
                         </div>
@@ -141,7 +137,7 @@ class MapMaker extends React.Component {
         
         // only execute if the selected coordinate is a valid coordinate or represents a change
         if (this.state.firewallType === undefined) return;
-        if (this.state.gameMap[i][j].type === ItemType.NON_EXISTENT || this.state.gameMap[i][j].type === ItemType.ENEMY) return;
+        if (this.state.gameMap[i][j].type === ItemType.NON_EXISTENT) return;
         if (this.state.gameMap[i][j].type === this.state.firewallType && this.state.gameMap[i][j].colorIndex === this.state.selectedGroupIndex) return;
         
         // create copy of the map
@@ -149,7 +145,8 @@ class MapMaker extends React.Component {
         // change the coordinate selected to current selected options
         mapCopy[i][j] = {
             type: this.state.firewallType,
-            colorIndex: this.state.selectedGroupIndex
+            colorIndex: this.state.selectedGroupIndex,
+            playerIndex: mapCopy[i][j].playerIndex
         }
         // update state (which updates the map)
         this.setState({
@@ -203,25 +200,34 @@ class MapMaker extends React.Component {
     getPointsAsCode() {
         let {gameMap} = this.state;
 
-        let filtered = [];
+        let filtered = []
         gameMap.forEach((row, i) => row.forEach((item, j) => {
             if (item.type === ItemType.DESTRUCTOR || item.type === ItemType.ENCRYPTOR || item.type === ItemType.FILTER)
                 filtered.push({
                     x: j,
                     y: 27 - i,
                     type: item.type,
-                    colorIndex: item.colorIndex
+                    colorIndex: item.colorIndex,
+                    playerIndex: item.playerIndex
                 });
         }))
 
-        let coordinatesAsStrings = groupColors.map(color => ({[ItemType.DESTRUCTOR]: "", [ItemType.ENCRYPTOR]: "", [ItemType.FILTER]: "" }));
+        let myCoordinatesAsStrings = groupColors.map(color => ({[ItemType.DESTRUCTOR]: "", [ItemType.ENCRYPTOR]: "", [ItemType.FILTER]: "" }));
+        let enemyCoordinatesAsStrings = groupColors.map(color => ({[ItemType.DESTRUCTOR]: "", [ItemType.ENCRYPTOR]: "", [ItemType.FILTER]: "" }));
+
         filtered.forEach((item) => {
-            coordinatesAsStrings[item.colorIndex][item.type] += "[" + item.x + ", " + item.y + "]"
-            coordinatesAsStrings[item.colorIndex][item.type] += "   "
+            if (item.playerIndex === 0) {
+                myCoordinatesAsStrings[item.colorIndex][item.type] += "[" + item.x + ", " + item.y + "]"
+                myCoordinatesAsStrings[item.colorIndex][item.type] += "   "
+            }
+            else if (item.playerIndex === 1) {
+                enemyCoordinatesAsStrings[item.colorIndex][item.type] += "[" + item.x + ", " + item.y + "]"
+                enemyCoordinatesAsStrings[item.colorIndex][item.type] += "   "
+            }
         })
 
-        // converting coordinates to string
-        coordinatesAsStrings = coordinatesAsStrings.map((obj, colorIndex) => {
+        // mapped function
+        const mappedToStringArray = (obj, colorIndex) => {
             let masterString = "";
             for (let item in obj) {
                 let val = obj[item]
@@ -238,11 +244,20 @@ class MapMaker extends React.Component {
                 }
             }
             return masterString;
-        });
+        }
+
+        // converting coordinates to string
+        myCoordinatesAsStrings = myCoordinatesAsStrings.map(mappedToStringArray);
+        enemyCoordinatesAsStrings = enemyCoordinatesAsStrings.map(mappedToStringArray);
+
+        
 
         this.setState({
             showModal: true,
-            coordinateStrings: coordinatesAsStrings
+            coordinateStrings: {
+                myPointsStrings: myCoordinatesAsStrings,
+                enemyPointsStrings: enemyCoordinatesAsStrings 
+            }
         })
     }
 }
