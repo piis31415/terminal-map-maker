@@ -308,7 +308,10 @@ class MapMaker extends React.Component {
                 colorIndex: this.state.selectedGroupIndex,
                 playerIndex: map[27 - item[2]][item[1]].playerIndex,
                 upgraded: (unitType === ItemType.UPGRADE),
-                i: i+1
+                i: ((unitType === ItemType.UPGRADE) ? map[27 - item[2]][item[1]].i : i+1)
+            }
+            if (unitType === ItemType.UPGRADE) {
+                map[27 - item[2]][item[1]].upgradeMove = i+1
             }
         }
         this.setState({
