@@ -53,7 +53,7 @@ const mapMakerStyle = <style jsx>{`
     .map-maker-options-container .firewalls-container {
         display: grid;
         grid-template-rows: 1fr;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr;
         align-items: center;
         justify-items: center;
     }

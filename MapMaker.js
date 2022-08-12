@@ -102,14 +102,12 @@ class MapMaker extends React.Component {
                         >
                             <div className="up" style={{color: groupColor}}>^</div>
                         </div>
-                        { /* TODO: undo button, remember to change line 56 in mapMakerStyle.js to adjust number of cols
                         <div 
-                            className={this.state.firewallType === ItemType.VALID ? firewallItemSelected : firewallItemClass}
-                            onClick={() => this.setFirewallItem(ItemType.VALID)}
+                            className={firewallItemClass}
+                            onClick={() => this.undo()}
                         >
-                            <div className="x" style={{color: groupColor}}>&#60;</div>
+                            <div className="<" style={{color: groupColor}}>&#60;</div>
                         </div>
-                        */ }
                     </div>
                         { /* Each of the colors group - lets user pick which color to use */ }
                     {/*
@@ -233,7 +231,24 @@ class MapMaker extends React.Component {
 
     // undo last move
     undo() {
-
+        if (this.state.buildOrder.length > 0) {
+            let mapCopy = this.state.gameMap;
+            let moveArray = this.state.buildOrder;
+            let lastMove = moveArray.pop();
+            lastMove = lastMove.slice(1,-1);
+            let arr = lastMove.split(", ");
+            let i = 27 - parseInt(arr[2]), j = parseInt(arr[1]);
+            if (arr[0] === "UPGRADE") {
+                mapCopy[i][j] = {type: mapCopy[i][j].type, colorIndex: mapCopy[i][j].colorIndex, playerIndex: mapCopy[i][j].playerIndex, upgraded: false}
+            } else {
+                mapCopy[i][j] = {type: ItemType.VALID, colorIndex: 0, playerIndex: 0, upgraded: false};
+            }
+            // update state (which updates the map)
+            this.setState({
+                gameMap: mapCopy,
+                buildOrder: moveArray
+            })
+        }
     }
 
     importMap(str) {
