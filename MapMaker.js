@@ -50,7 +50,8 @@ class MapMaker extends React.Component {
             showModal: false,
             coordinateString: "{}",
             buildOrder: []
-        }
+        };
+        this.importMap = this.importMap.bind(this);
     }
     render() {
         let firewallItemClass = "firewall-item";
@@ -62,6 +63,7 @@ class MapMaker extends React.Component {
                 {
                     // modal for showing the user's points
                     this.state.showModal && <PointsModal 
+                        importMap = {this.importMap}
                         coordinateString={this.state.coordinateString}
                         hideModal={() => this.setState({showModal: false})}
                     />
@@ -124,7 +126,7 @@ class MapMaker extends React.Component {
                     </div> */}
                     { /* Utility buttons (get all points and remove all points) */ }
                     <div className="export-points-container options-container">
-                        <div className="utility-button" onClick={() => this.getPointsAsCode()}>Get Points</div>
+                        <div className="utility-button" onClick={() => this.getPointsAsCode()}>Import/Export</div>
                         <div className="utility-button" onClick={() => this.resetMap()}>Remove All Points</div>
                     </div>
                     { /* Displays the current coordinate the user is hovering on */ }
@@ -178,12 +180,11 @@ class MapMaker extends React.Component {
                 break;
         }
             
-        this.state.buildOrder.push("{" + typeString + ", " + i + ", " + j + "}");
+        this.state.buildOrder.push("{" + typeString + ", " + coordinate.x + ", " + coordinate.y + "}");
         // update state (which updates the map)
         this.setState({
             gameMap: mapCopy
         })
-        console.log(this.state)
     }
     mapItemHover = (coordinate) => {
         // updates the current hovered coordinate so the user knows which coordinate is hovered over
@@ -224,18 +225,72 @@ class MapMaker extends React.Component {
     // reset the map to start fresh and new mapping
     resetMap() {
         this.setState({
-            gameMap: this.getInitGameMap()
+            gameMap: this.getInitGameMap(),
+            coordinateString: "{}",
+            buildOrder: []
         })
     }
 
-    importMap(String) {
-        this.setState
+    // undo last move
+    undo() {
+
+    }
+
+    importMap(str) {
+        // make sure str is long enough
+        let string = str.replace(/\s/g,'');
+        if (str.length < 2) return;
+        string = string.slice(1,-1);
+        let mapString = string; // create unprocessed copy for use for state change
+        if (string === "") {
+            this.resetMap();
+            return;
+        }
+        string = string.slice(1,-1);
+        let arr = string.split("},{").map(m => m.split(",")).map(m => [m[0], parseInt(m[1]), parseInt(m[2])]);
+        let map = this.getInitGameMap();
+        let unitType = ItemType.UPGRADE;
+        let tmpBuildOrder = [];
+        for (let i = 0; i < arr.length; i++) {
+            let item = arr[i];
+            switch (item[0]) {
+                case "TURRET":
+                    unitType = ItemType.DESTRUCTOR
+                    break; 
+                case "SUPPORT": 
+                    unitType = ItemType.ENCRYPTOR
+                    break;
+                case "WALL": 
+                    unitType = ItemType.FILTER
+                    break;
+                case "UPGRADE":
+                    unitType = ItemType.UPGRADE
+                    break;
+            }
+            tmpBuildOrder.push("{" + item[0] + ", " + item[1] + ", " + item[2] + "}");
+            map[27 - item[2]][item[1]] = {
+                type: ((unitType === ItemType.UPGRADE) ? map[27 - item[2]][item[1]].type : unitType),
+                colorIndex: this.state.selectedGroupIndex,
+                playerIndex: map[27 - item[2]][item[1]].playerIndex,
+                upgraded: (unitType === ItemType.UPGRADE)
+            }
+        }
+        this.setState({
+            gameMap: map,
+            currentHoveredCoordinate: undefined,
+            firewallType: ItemType.FILTER,
+            groups: ["#FF22A1"],
+            selectedGroupIndex: 0,
+            showModal: false,
+            coordinateString: mapString,
+            buildOrder: tmpBuildOrder
+        })
     }
 
     // get the currently selected points and format into string to be outputted for the user
     getPointsAsCode() {
         let {gameMap} = this.state;
-        let order = this.state.buildOrder
+        let order = this.state.buildOrder;
         let string = "{";
         if (order.length) {
             for (let i = 0; i < order.length-1; i++) {
@@ -282,6 +337,7 @@ class MapMaker extends React.Component {
 
         
         */
+        console.log(string);
         this.setState({
             showModal: true,
             coordinateString: string

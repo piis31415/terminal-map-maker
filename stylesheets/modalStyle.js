@@ -64,6 +64,10 @@ const modalStyle =
         .modal-content .results-field .points-group {
             margin: 0 0 1vw;
         }
+        .modal-content .label {
+            color: white;
+            font-family: 'Source Code Pro', monospace;
+        }
         .modal-content .utility-button {
             width: 30%;
             margin: 1vw 0;
