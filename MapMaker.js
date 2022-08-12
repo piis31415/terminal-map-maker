@@ -20,18 +20,21 @@ class MapMaker extends React.Component {
             for (let j = 0; j < 28; j++) {
                 let x = j;
                 let y = 27 - i;
-                if (x < 14 && y < 14 && -x + 13 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 0});
-                else if (x < 14 && y > 13 && x + 14 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 1});
-                else if (x > 13 && y < 14 && x - 14 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 0});
-                else if (x > 13 && y > 13 && -x + 41 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 1});
-                else if (y > 13) gameMap[i].push({ type: ItemType.VALID, colorIndex: 0, playerIndex: 1});
-                else gameMap[i].push({ type: ItemType.VALID, colorIndex: 0, playerIndex: 0});
+                if (x < 14 && y < 14 && -x + 13 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 0, upgraded: false});
+                else if (x < 14 && y > 13 && x + 14 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 1, upgraded: false});
+                else if (x > 13 && y < 14 && x - 14 > y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 0, upgraded: false});
+                else if (x > 13 && y > 13 && -x + 41 < y) gameMap[i].push({ type: ItemType.NON_EXISTENT, colorIndex: 0, playerIndex: 1, upgraded: false});
+                else if (y > 13) gameMap[i].push({ type: ItemType.NON_EXISTENT2, colorIndex: 0, playerIndex: 0, upgraded: false});
+                else if (y > 13) gameMap[i].push({ type: ItemType.VALID, colorIndex: 0, playerIndex: 1, upgraded: false});
+                else gameMap[i].push({ type: ItemType.VALID, colorIndex: 0, playerIndex: 0, upgraded: false});
             }
         }
         /* 
         gameMap is a 2-d array with each item containing an object: {
             type: ItemType // defines if a destructor, encryptor etc. is placed down.
             colorIndex: Number (integer) // it's index defines the group that it is in.
+            playerIndex: Number // defines player
+            upgraded: bool // defines upgrade status
         }
         */
         return gameMap;
@@ -45,10 +48,8 @@ class MapMaker extends React.Component {
             groups: ["#FF22A1"],
             selectedGroupIndex: 0,
             showModal: false,
-            coordinateStrings: {
-                myPointsStrings: [],
-                enemyPointsStrings: []
-            }
+            coordinateString: "{}",
+            buildOrder: []
         }
     }
     render() {
@@ -61,7 +62,7 @@ class MapMaker extends React.Component {
                 {
                     // modal for showing the user's points
                     this.state.showModal && <PointsModal 
-                        coordinateStrings={this.state.coordinateStrings} 
+                        coordinateString={this.state.coordinateString}
                         hideModal={() => this.setState({showModal: false})}
                     />
                 }
@@ -74,8 +75,9 @@ class MapMaker extends React.Component {
                     { /* Firewalls container to choose which type of firewall to place on map */ }
                     <div className="firewall-title">Choose Placement Marker</div>
                     <div className="firewalls-container options-container">
-                        <div 
-                            className={this.state.firewallType === ItemType.FILTER ? firewallItemSelected : firewallItemClass}
+                        <div
+                            className={
+                                this.state.firewallType === ItemType.FILTER ? firewallItemSelected : firewallItemClass}
                             onClick={() => this.setFirewallItem(ItemType.FILTER)}
                         >
                             <Filter fillColor={groupColor}/>
@@ -92,14 +94,23 @@ class MapMaker extends React.Component {
                         >
                             <Destructor fillColor={groupColor}/>
                         </div>
+                        <div
+                            className={this.state.firewallType === ItemType.UPGRADE ? firewallItemSelected : firewallItemClass}
+                            onClick={() => this.setFirewallItem(ItemType.UPGRADE)}
+                        >
+                            <div className="up" style={{color: groupColor}}>^</div>
+                        </div>
+                        { /* TODO: undo button, remember to change line 56 in mapMakerStyle.js to adjust number of cols
                         <div 
                             className={this.state.firewallType === ItemType.VALID ? firewallItemSelected : firewallItemClass}
                             onClick={() => this.setFirewallItem(ItemType.VALID)}
                         >
-                            <div className="x" style={{color: groupColor}}>X</div>
+                            <div className="x" style={{color: groupColor}}>&#60;</div>
                         </div>
+                        */ }
                     </div>
-                    { /* Each of the colors group - lets user pick which color to use */ }
+                        { /* Each of the colors group - lets user pick which color to use */ }
+                    {/*
                     <div className="groups-container options-container">
                         {
                             this.state.groups.map((group, i) => <GroupItem 
@@ -109,8 +120,8 @@ class MapMaker extends React.Component {
                                 onClick={() => this.setSelectedGroup(i)}
                             />)
                         }
-                        <div className="group-item add-group-item" onClick={() => this.addGroup()}><div>+</div></div>
-                    </div>
+                         <div className="group-item add-group-item" onClick={() => this.addGroup()}><div>+</div></div> 
+                    </div> */}
                     { /* Utility buttons (get all points and remove all points) */ }
                     <div className="export-points-container options-container">
                         <div className="utility-button" onClick={() => this.getPointsAsCode()}>Get Points</div>
@@ -135,23 +146,44 @@ class MapMaker extends React.Component {
         let i = 27 - coordinate.y;
         let j = coordinate.x;
         
-        // only execute if the selected coordinate is a valid coordinate or represents a change
+        // only execute if the selected coordinate is a valid coordinate or represents a change or a valid action
         if (this.state.firewallType === undefined) return;
-        if (this.state.gameMap[i][j].type === ItemType.NON_EXISTENT) return;
-        if (this.state.gameMap[i][j].type === this.state.firewallType && this.state.gameMap[i][j].colorIndex === this.state.selectedGroupIndex) return;
+        // if (this.state.gameMap[i][j].type === ItemType.NON_EXISTENT) return;
+        // if (this.state.gameMap[i][j].type === this.state.firewallType && this.state.gameMap[i][j].colorIndex === this.state.selectedGroupIndex) return;
+        if ((this.state.gameMap[i][j].type === ItemType.VALID || this.state.gameMap[i][j].upgraded) && this.state.firewallType === ItemType.UPGRADE) return;
+        if (this.state.gameMap[i][j].type !== ItemType.VALID && this.state.firewallType !== ItemType.UPGRADE) return;
+
         
         // create copy of the map
         let mapCopy = this.state.gameMap;
         // change the coordinate selected to current selected options
         mapCopy[i][j] = {
-            type: this.state.firewallType,
+            type: ((this.state.firewallType === ItemType.UPGRADE) ? mapCopy[i][j].type : this.state.firewallType),
             colorIndex: this.state.selectedGroupIndex,
-            playerIndex: mapCopy[i][j].playerIndex
+            playerIndex: mapCopy[i][j].playerIndex,
+            upgraded: (this.state.firewallType === ItemType.UPGRADE)
         }
+
+        let typeString = "UPGRADE";
+
+        switch (this.state.firewallType) {
+            case ItemType.DESTRUCTOR: 
+                typeString = "TURRET"
+                break; 
+            case ItemType.ENCRYPTOR: 
+                typeString = "SUPPORT"
+                break;
+            case ItemType.FILTER: 
+                typeString = "WALL"
+                break;
+        }
+            
+        this.state.buildOrder.push("{" + typeString + ", " + i + ", " + j + "}");
         // update state (which updates the map)
         this.setState({
             gameMap: mapCopy
         })
+        console.log(this.state)
     }
     mapItemHover = (coordinate) => {
         // updates the current hovered coordinate so the user knows which coordinate is hovered over
@@ -196,11 +228,25 @@ class MapMaker extends React.Component {
         })
     }
 
+    importMap(String) {
+        this.setState
+    }
+
     // get the currently selected points and format into string to be outputted for the user
     getPointsAsCode() {
         let {gameMap} = this.state;
-
-        let filtered = []
+        let order = this.state.buildOrder
+        let string = "{";
+        if (order.length) {
+            for (let i = 0; i < order.length-1; i++) {
+                string += order[i] + ", ";
+            } 
+            string += order.slice(-1) + "}"
+        } else {
+            string = "{}";
+        }
+        /*
+        let filtered = [];
         gameMap.forEach((row, i) => row.forEach((item, j) => {
             if (item.type === ItemType.DESTRUCTOR || item.type === ItemType.ENCRYPTOR || item.type === ItemType.FILTER)
                 filtered.push({
@@ -208,39 +254,23 @@ class MapMaker extends React.Component {
                     y: 27 - i,
                     type: item.type,
                     colorIndex: item.colorIndex,
-                    playerIndex: item.playerIndex
+                    playerIndex: item.playerIndex,
+                    upgraded: item.upgraded
                 });
         }))
-
-        let myCoordinatesAsStrings = groupColors.map(color => ({[ItemType.DESTRUCTOR]: "", [ItemType.ENCRYPTOR]: "", [ItemType.FILTER]: "" }));
-        let enemyCoordinatesAsStrings = groupColors.map(color => ({[ItemType.DESTRUCTOR]: "", [ItemType.ENCRYPTOR]: "", [ItemType.FILTER]: "" }));
-
-        filtered.forEach((item) => {
-            if (item.playerIndex === 0) {
-                myCoordinatesAsStrings[item.colorIndex][item.type] += "[" + item.x + ", " + item.y + "]"
-                myCoordinatesAsStrings[item.colorIndex][item.type] += "   "
-            }
-            else if (item.playerIndex === 1) {
-                enemyCoordinatesAsStrings[item.colorIndex][item.type] += "[" + item.x + ", " + item.y + "]"
-                enemyCoordinatesAsStrings[item.colorIndex][item.type] += "   "
-            }
-        })
 
         // mapped function
         const mappedToStringArray = (obj, colorIndex) => {
             let masterString = "";
             for (let item in obj) {
-                let val = obj[item]
+                let val = obj
                                 .trim()
                                 .split("   ")
-                                .reduce((prevStr, currentStr) => prevStr === "[" ? prevStr + currentStr : prevStr + ", " + currentStr, "[") + "]";
+                                .reduce((prevStr, currentStr) => prevStr === "{" ? prevStr + currentStr : prevStr + ", " + currentStr, "{") + "}";
                 if (val.length > 2) {
                     // filters if a string is simply: []
-                    let typeString = "filters";
-                    if (item === ItemType.DESTRUCTOR) typeString = "destructors"
-                    else if (item === ItemType.ENCRYPTOR) typeString = "encryptors";
                     if (masterString) masterString += "\n";
-                    masterString += colorNames[colorIndex] + "_" + typeString + "_points = " + val;
+                    masterString += colorNames[colorIndex] + "_strategy = " + val;
                 }
             }
             return masterString;
@@ -251,13 +281,10 @@ class MapMaker extends React.Component {
         enemyCoordinatesAsStrings = enemyCoordinatesAsStrings.map(mappedToStringArray);
 
         
-
+        */
         this.setState({
             showModal: true,
-            coordinateStrings: {
-                myPointsStrings: myCoordinatesAsStrings,
-                enemyPointsStrings: enemyCoordinatesAsStrings 
-            }
+            coordinateString: string
         })
     }
 }

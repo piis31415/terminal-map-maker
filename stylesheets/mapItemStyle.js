@@ -39,6 +39,9 @@ const mapItemStyle = <style jsx>{`
 .rendered.out-of-bounds {
     background-color: #333333;
 }
+.rendered.out-of-bounds2 {
+    background-color: #777777;
+}
 .rendered.enemy {
     opacity: 0.4;
 }

@@ -36,7 +36,7 @@ const mapMakerStyle = <style jsx>{`
         border-radius: 1vmin;
         box-shadow: 0 2px 30px rgba(0,0,0,0.1);
         display: grid;
-        grid-template-rows: 1fr auto minmax(8vw, 1fr) 1fr 1fr 1fr;
+        grid-template-rows: 1fr auto minmax(8vw, 1fr) 1fr 1fr 1fr 1fr;
         grid-template-columns: 1fr;
         padding: 1vw;
     }

@@ -10,8 +10,7 @@ class PointsModal extends React.Component {
     }
     render() {
         let {selectedTabIndex} = this.state;
-        let myPoints = this.props.coordinateStrings.myPointsStrings.map(str => str.split("\n"))
-        let enemyPoints = this.props.coordinateStrings.enemyPointsStrings.map(str => str.split("\n"));
+        let myPoints = this.props.coordinateString
         return (
             <div className="modal">
                 <section className="modal-content">
@@ -22,27 +21,10 @@ class PointsModal extends React.Component {
                         >
                             My points
                         </div>
-                        <div 
-                            className={selectedTabIndex === 1 ? "tab-bar-item selected" : "tab-bar-item"}
-                            onClick={() => this.setState({selectedTabIndex: 1})}
-                        >
-                            Enemy points
-                        </div>
                     </div>
                     <div className="results-field">
                         {
-                            selectedTabIndex === 0 ?
-                                myPoints.map((strings, i) => {
-                                    return <div key={i} className="points-group">
-                                        {
-                                            strings.map(string => <div className="point-group">{string}</div>)
-                                        }
-                                    </div>
-                                })
-                                :
-                                enemyPoints.map((string, i) => {
-                                    return <div key={i} className="points-group">{string}</div>
-                                })
+                                myPoints
                         }
                     </div>
                     <div className="utility-button" onClick={() => this.props.hideModal && this.props.hideModal()}>Done</div>
