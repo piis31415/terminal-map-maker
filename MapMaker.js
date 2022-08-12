@@ -35,6 +35,7 @@ class MapMaker extends React.Component {
             colorIndex: Number (integer) // it's index defines the group that it is in.
             playerIndex: Number // defines player
             upgraded: bool // defines upgrade status
+            i: Number // move number
         }
         */
         return gameMap;
@@ -49,9 +50,20 @@ class MapMaker extends React.Component {
             selectedGroupIndex: 0,
             showModal: false,
             coordinateString: "{}",
-            buildOrder: []
+            buildOrder: [],
+            moveNumber: 1
         };
         this.importMap = this.importMap.bind(this);
+    }
+    sidebar(x, type){
+        if (x) {
+            return (
+                <div className="current-coordinate-container options-container">
+                    <div className="current-coordinate-title">{type} #</div>
+                    <div className="current-coordinate-value">{x}</div>
+                </div>
+            )
+        }
     }
     render() {
         let firewallItemClass = "firewall-item";
@@ -132,6 +144,8 @@ class MapMaker extends React.Component {
                         <div className="current-coordinate-title">Current Coordinate</div>
                         <div className="current-coordinate-value">{this.state.currentHoveredCoordinate && this.state.currentHoveredCoordinate.x + ", " + this.state.currentHoveredCoordinate.y}</div>
                     </div>
+                    {this.sidebar(this.state.currentHoveredCoordinate && this.state.gameMap[27 - this.state.currentHoveredCoordinate.y][this.state.currentHoveredCoordinate.x].i, "Action")}
+                    {this.sidebar(this.state.currentHoveredCoordinate && this.state.gameMap[27 - this.state.currentHoveredCoordinate.y][this.state.currentHoveredCoordinate.x].upgradeMove, "Upgrade")}
                 </div>
 
                 {/* Styles imported from stylesheets */}
@@ -161,7 +175,11 @@ class MapMaker extends React.Component {
             type: ((this.state.firewallType === ItemType.UPGRADE) ? mapCopy[i][j].type : this.state.firewallType),
             colorIndex: this.state.selectedGroupIndex,
             playerIndex: mapCopy[i][j].playerIndex,
-            upgraded: (this.state.firewallType === ItemType.UPGRADE)
+            upgraded: (this.state.firewallType === ItemType.UPGRADE),
+            i: ((this.state.firewallType === ItemType.UPGRADE) ? mapCopy[i][j].i : this.state.moveNumber),
+        };
+        if (this.state.firewallType === ItemType.UPGRADE) {
+            mapCopy[i][j].upgradeMove = this.state.moveNumber
         }
 
         let typeString = "UPGRADE";
@@ -181,7 +199,8 @@ class MapMaker extends React.Component {
         this.state.buildOrder.push("{" + typeString + ", " + coordinate.x + ", " + coordinate.y + "}");
         // update state (which updates the map)
         this.setState({
-            gameMap: mapCopy
+            gameMap: mapCopy,
+            moveNumber: this.state.moveNumber + 1
         })
     }
     mapItemHover = (coordinate) => {
@@ -239,14 +258,15 @@ class MapMaker extends React.Component {
             let arr = lastMove.split(", ");
             let i = 27 - parseInt(arr[2]), j = parseInt(arr[1]);
             if (arr[0] === "UPGRADE") {
-                mapCopy[i][j] = {type: mapCopy[i][j].type, colorIndex: mapCopy[i][j].colorIndex, playerIndex: mapCopy[i][j].playerIndex, upgraded: false}
+                mapCopy[i][j] = {type: mapCopy[i][j].type, colorIndex: mapCopy[i][j].colorIndex, playerIndex: mapCopy[i][j].playerIndex, upgraded: false, i: mapCopy[i][j].i}
             } else {
                 mapCopy[i][j] = {type: ItemType.VALID, colorIndex: 0, playerIndex: 0, upgraded: false};
             }
             // update state (which updates the map)
             this.setState({
                 gameMap: mapCopy,
-                buildOrder: moveArray
+                buildOrder: moveArray,
+                moveNumber: this.state.moveNumber - 1
             })
         }
     }
@@ -287,7 +307,8 @@ class MapMaker extends React.Component {
                 type: ((unitType === ItemType.UPGRADE) ? map[27 - item[2]][item[1]].type : unitType),
                 colorIndex: this.state.selectedGroupIndex,
                 playerIndex: map[27 - item[2]][item[1]].playerIndex,
-                upgraded: (unitType === ItemType.UPGRADE)
+                upgraded: (unitType === ItemType.UPGRADE),
+                i: i+1
             }
         }
         this.setState({
@@ -298,7 +319,8 @@ class MapMaker extends React.Component {
             selectedGroupIndex: 0,
             showModal: false,
             coordinateString: mapString,
-            buildOrder: tmpBuildOrder
+            buildOrder: tmpBuildOrder,
+            moveNumber: arr.length + 1
         })
     }
 
